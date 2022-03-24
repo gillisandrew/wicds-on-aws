@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+basedir="$HOME/.wine/drive_c/Program Files (x86)/Ubisoft/World in Conflict Soviet Assault Server"
+
+function _get_session_name() {
+    echo "wicds-$1"
+}
+
+function _start() {
+    if [ -f "$HOME/.wicds-installed" ]; then
+        sessionname=$(_get_session_name $1)
+        echo "Setting active config files..."
+        cp "$basedir/config/default"/* "$basedir"
+        cp "$basedir/config/$1"/* "$basedir"
+        echo "Starting server ($sessionname)..."
+        screen -S $sessionname -dm bash -c "cd \"$basedir\"; wine wic_ds.exe"
+    else
+        echo "You must perform the GUI installation before running the dedicated server"
+        exit 1
+    fi
+}
+
+function _stop() {
+    screen -S $(_get_session_name $1) -X kill
+}
+
+function _install() {
+    if [ -f "$HOME/.wicds-installed" ]; then
+        echo "Dedicated server already installed."
+        exit 1
+    else
+        cd /usr/local/src/
+        wine wicds_step_1.exe
+        wine wicds_step_2.exe
+        unzip -o wicds_step_3.zip d3dx9_33.dll -d "$basedir"
+        touch "$HOME/.wicds-installed"
+    fi
+}
+
+function _configure() {
+    if [ -f "$HOME/.wicds-installed" ]; then
+        mkdir -p "$basedir/config"
+        cp -r /etc/wicds/* "$basedir/config"
+    else
+        echo "You must perform the GUI installation before running the dedicated server"
+        exit 1
+    fi
+}
+
+case $1 in
+    install)
+        _install
+    ;;
+    start)
+        _start $2
+    ;;
+    stop)
+        _stop $2
+    ;;
+    configure)
+        _configure
+    ;;
+    restart)
+        _stop $2 && _start $2
+    ;;
+    reload)
+        _stop $2 && _configure && _start $2
+    ;;
+    path)
+        echo "$basedir"
+    ;;
+    *)
+        exit
+    ;;
+esac
