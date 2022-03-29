@@ -65,6 +65,9 @@ Defaults:
   PvsBNumBots: 4
   PvsBBotDifficulty: 1
   MapCycle: 
+    # ----------------------------------
+    # Classic+SA Maps
+    # ----------------------------------
     - do_Hometown
     - do_Xmas
     - do_Seaside
@@ -92,8 +95,8 @@ Defaults:
     - do_Canal
     - do_Apocalypse
     - do_Tequila
-    ####################################
-    # New Maps
+    # ----------------------------------
+    #   New Maps
     # ----------------------------------
     # - as_Ozzault
     # - do_Airport

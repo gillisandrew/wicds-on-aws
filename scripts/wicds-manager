@@ -777,9 +777,17 @@ install() {
   if [ -f "$HOME/.wicds-installed" ]; then
     printf "Dedicated server already installed.\\n"
   else
-    export DISPLAY=:99
     set -m
-    xdpyinfo -display $DISPLAY > /dev/null || Xvfb $DISPLAY -screen 0 1024x768x16 & xvfbpid=$!
+
+    i=0
+    while [ -f /tmp/.X$i-lock ]; do
+        i=$(($i + 1))
+    done
+    export DISPLAY=i
+
+    Xvfb $DISPLAY -screen 0 1024x768x16 &
+    xvfbpid=$!
+
     wineboot
     cp "${_srcdir}/install-1.iss" "${_srcdir}/install-2.iss" "$HOME/.wine/drive_c"
 
