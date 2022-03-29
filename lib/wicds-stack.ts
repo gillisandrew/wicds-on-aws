@@ -1,7 +1,12 @@
-import { CfnParameter, Duration, Stack, StackProps } from 'aws-cdk-lib';
-import { CfnInstance, CloudFormationInit, IInstance, InitCommand, InitConfig, InitFile, InitPackage, InitSource, Instance, InstanceClass, InstanceSize, InstanceType, ISecurityGroup, IVpc, MachineImage, Peer, Port, SecurityGroup, UserData, Vpc } from 'aws-cdk-lib/aws-ec2';
+import { CfnOutput, CfnParameter, Duration, Stack, StackProps } from 'aws-cdk-lib';
+import { BlockDevice, BlockDeviceVolume, CfnInstance, CloudFormationInit, GatewayVpcEndpointAwsService, IInstance, InitCommand, InitConfig, InitFile, InitPackage, InitSource, InitUser, Instance, InstanceClass, InstanceSize, InstanceType, ISecurityGroup, IVpc, MachineImage, OperatingSystemType, Peer, Port, SecurityGroup, SubnetType, UserData, Vpc } from 'aws-cdk-lib/aws-ec2';
 import { IRole, ManagedPolicy, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
+import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
+import configs from './InitConfig';
+
+import install_cfn from './InitConfig/enable_cfn';
+
 
 export class WICDSStack extends Stack {
   protected _role?: IRole
@@ -10,127 +15,89 @@ export class WICDSStack extends Stack {
   protected _userData?: UserData
   protected _init?: CloudFormationInit
   protected instance: Instance
+  protected bucket: Bucket
 
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    const { role, vpc, securityGroup, init, userData } = this;
+    const { role, vpc, securityGroup, userData } = this;
+    const { keyName, instanceSize, instanceClass } = this.parameters()
 
-    this.instance =  new Instance(this, 'Instance', {
+    this.vpc.addGatewayEndpoint('s3', {
+      service: GatewayVpcEndpointAwsService.S3
+    })
+
+
+    this.instance = new Instance(this, 'Instance', {
       machineImage: MachineImage.lookup({
         name: 'ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*',
         owners: ['099720109477']
       }),
-      instanceType: InstanceType.of(InstanceClass.T3, InstanceSize.SMALL),
+      instanceType: InstanceType.of(instanceClass, instanceSize),
       vpc,
-      keyName: (new CfnParameter(this, 'KeyPair', {
-        description: 'KeyPair used to secure the server',
-        type: 'String'
-        })).valueAsString,
+      keyName,
       securityGroup,
-      init,
-      initOptions: {
-        configSets: ['setup'],
-        timeout: Duration.minutes(30),
-        embedFingerprint: false,
-      },
+      blockDevices: [{
+        deviceName: '/dev/sda1',
+        volume: BlockDeviceVolume.ebs(16)
+      }],
       role,
-      userData
+      userData,
+      userDataCausesReplacement: false
     })
-    this.instance.addUserData(
-      `mkdir -p /etc/cfn/hooks.d && cat << EOF > /etc/cfn/hooks.d/cfn-auto-reloader.conf
-[cfn-auto-reloader-hook]
-triggers=post.update
-path=Resources.${(this.instance.node.defaultChild as CfnInstance).logicalId}.Metadata.AWS::CloudFormation::Init
-action=/opt/aws/bin/cfn-init -v --stack ${Stack.of(this).stackName} --resource ${(this.instance.node.defaultChild as CfnInstance).logicalId} --configsets default --region ${Stack.of(this).region}
-runas=root
-EOF
-`)
-    this.instance.addUserData(`systemctl restart cfn-hup.service`)
+    this.node.defaultChild = this.instance.node.defaultChild
+
+    this.init.attach(this.instance.node.defaultChild as CfnInstance, {
+      configSets: ['setup'],
+      userData,
+      embedFingerprint: false,
+      instanceRole: this.instance.role,
+      platform: this.instance.osType,
+      ignoreFailures: true // TODO
+    });
+
+    (this.instance.node.defaultChild as CfnInstance)
+      .cfnOptions.creationPolicy = {
+        resourceSignal: {
+          count: 1,
+          timeout: 'PT30M'
+        }
+      }
+
+    this.outputs()
   }
 
   get init() {
     this._init = this._init ?? CloudFormationInit.fromConfigSets({
       configSets: {
         setup: [
-          'install_cfn',
-          'add_utils',
+          'enable_cfn',
           'add_wine_repo',
           'install_wine',
-          'download_wicds',
+          'install_wicds',
+          'add_utils',
         ],
         default: [
           'add_utils',
         ]
       },
-      configs: {
-        'install_cfn': new InitConfig([
-          InitFile.fromString('/etc/cfn/cfn-hup.conf', `[main]
-stack=${Stack.of(this).stackId}
-region=${Stack.of(this).region}
-interval=1
-`,
-          {
-            mode: '000400'
-          }),
-          InitFile.fromString('/lib/systemd/system/cfn-hup.service', `[Unit]
-Description=cfn-hup daemon
-
-[Service]
-Type=simple
-ExecStart=/opt/aws/bin/cfn-hup
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-`),
-          InitCommand.shellCommand('systemctl enable cfn-hup.service'),
-          InitCommand.shellCommand('systemctl start cfn-hup.service'),
-        ]),
-        'add_utils': new InitConfig([
-          InitFile.fromAsset('/usr/local/bin/download-mono', './utils/download-mono', { mode: '000755' }),
-          InitFile.fromAsset('/usr/local/bin/wicds', './utils/wicds', { mode: '000755' }),
-          InitSource.fromAsset('/etc/wicds', './config')
-         ]),
-        'add_wine_repo': new InitConfig([
-          InitCommand.shellCommand(`#!/usr/bin/env bash
-wget -nv -O- https://dl.winehq.org/wine-builds/winehq.key | APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=1 apt-key add -
-echo "deb https://dl.winehq.org/wine-builds/ubuntu/ $(grep VERSION_CODENAME= /etc/os-release | cut -d= -f2) main" >> /etc/apt/sources.list
-dpkg --add-architecture i386
-apt-get update -y
-`
-          )]),
-        'install_wine': new InitConfig([
-          InitPackage.apt('winehq-stable'),
-          InitCommand.shellCommand(`#!/usr/bin/env bash
-download-mono "$(wine --version | sed -E \'s/^wine-//\')" 
-`)
-        ]),
-        'download_wicds': new InitConfig([
-          InitPackage.apt('unzip'),
-          InitFile.fromUrl('/usr/local/src/wicds_step_1.exe', 'https://www.massgate.org/files/wic_server_1010.exe'),
-          InitFile.fromUrl('/usr/local/src/wicds_step_2.exe', 'https://www.massgate.org/files/wic_server_update_1010_to_1011.exe'),
-          InitFile.fromUrl('/usr/local/src/wicds_step_3.zip', 'https://www.massgate.org/files/wic_server_patch_beta.zip'),
-          InitFile.fromUrl('/usr/local/src/wicds_maps.zip', 'https://www.massgate.org/files/maps/map_pack.zip')
-        ])
-      }
+      configs: configs(this)
     })
 
     return this._init
   }
+  
   get userData() {
     this._userData = this._userData ?? ((ud) => {
       ud.addCommands(
-        'apt-get update -y',
-        'apt-get install python2.7 -y',
-        'curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py',
-        'python2.7 get-pip.py',
-        'pip2 install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz',
+        'apt-get -o DPkg::Lock::Timeout=120 update -y',
+        'apt-get -o DPkg::Lock::Timeout=120 install -y python3-pip',
+        'pip3 install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz',
         'mkdir -p /opt/aws/bin',
-        'ln -s /usr/local/bin/cfn-*  /opt/aws/bin/'
+        'ln -s /usr/local/bin/cfn-*  /opt/aws/bin/',
       )
       return ud
-    })(UserData.forLinux({ shebang: '#!/usr/bin/env bash' }))
+    })(UserData.forLinux())
 
     return this._userData
   }
@@ -148,8 +115,19 @@ download-mono "$(wine --version | sed -E \'s/^wine-//\')"
   }
 
   get vpc() {
-    this._vpc = this._vpc ?? Vpc.fromLookup(this, 'DefaultVpc', {
-      isDefault: true
+    this._vpc = this._vpc ?? new Vpc(this, 'Vpc', {
+      cidr: '10.0.0.0/16',
+      natGateways: 0,
+      maxAzs: 2,
+      subnetConfiguration: [{
+        name: 'PublicA',
+        subnetType: SubnetType.PUBLIC,
+        cidrMask: 24
+      },{
+        name: 'PublicB',
+        subnetType: SubnetType.PUBLIC,
+        cidrMask: 24
+      }]
     })
 
     return this._vpc
@@ -172,5 +150,33 @@ download-mono "$(wine --version | sed -E \'s/^wine-//\')"
     }))
 
     return this._securityGroup
+  }
+
+  private outputs() {
+    new CfnOutput(this, 'InstanceId', {
+      value: this.instance.instanceId,
+    })
+  }
+
+  private parameters() {
+    return {
+      keyName: (new CfnParameter(this, 'KeyName', {
+        description: 'Key pair name used to secure the server',
+        type: 'String',
+        default: 'wicds-key-pair'
+      })).valueAsString,
+      instanceSize: (new CfnParameter(this, 'InstanceSize', {
+        description: 'Instance size of the server',
+        type: 'String',
+        allowedValues: Object.values(InstanceSize),
+        default: InstanceSize.MICRO,
+      })).valueAsString as InstanceSize,
+      instanceClass: (new CfnParameter(this, 'InstanceClass', {
+        description: 'Instance class of the server',
+        type: 'String',
+        allowedValues: Object.values(InstanceClass),
+        default: InstanceClass.T3,
+      })).valueAsString as InstanceClass
+    }
   }
 }

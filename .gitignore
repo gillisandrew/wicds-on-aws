@@ -1,5 +1,7 @@
 node_modules/
 cdk.out/
 cdk.context.json
-config/*
+assets/config/*
+assets/banners/*
+config.yaml
 !.gitkeep
