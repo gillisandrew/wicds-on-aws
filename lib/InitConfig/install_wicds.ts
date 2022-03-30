@@ -1,7 +1,7 @@
 import { InitCommand, InitConfig, InitFile, InitPackage, InitSource, InitUser } from "aws-cdk-lib/aws-ec2";
 import { Bucket } from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
-import WicdsServiceFile from "../Files/WicdsServiceFile";
+import { WICDS_USER } from "../constants";
 
 
 export default (scope: Construct) => new InitConfig([
@@ -9,8 +9,8 @@ export default (scope: Construct) => new InitConfig([
     InitPackage.apt('xvfb'),
     InitPackage.apt('x11-utils'),
     InitPackage.apt('xdotool'),
-    InitUser.fromName('wicds', {
-        homeDir: '/home/wicds',
+    InitUser.fromName(WICDS_USER, {
+        homeDir: `/home/${WICDS_USER}`,
     }),
-    InitCommand.shellCommand('mkdir /home/wicds && chown -R wicds:wicds /home/wicds'),
+    InitCommand.shellCommand(`mkdir /home/${WICDS_USER} && chown -R ${WICDS_USER}:${WICDS_USER} /home/${WICDS_USER}`),
   ])

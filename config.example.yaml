@@ -1,7 +1,7 @@
 
 ---
 GlobalConfig:
-  GameNamePrefix: "<#F71>[wicds-on-aws]</> "
+  GameNamePrefix: '<#F71>[wicds-on-aws]</> '
   GameNameSuffix: null
   MessageOfTheDayHeader: null
   MessageOfTheDayFooter: |
@@ -11,10 +11,10 @@ Instances:
     # `GameName` is the only value you really need to update.
     # The others will inherit from the default config.
     # See https://gillisandrew.github.io/3-digit-hex-colors/ for available colors
-    GameName: '<#1D4>myinstance</>'
+    GameName: <#1D4>My New Instance</>
 
 Defaults:
-  GameName: 'Default'
+  GameName: Default
   MessageOfTheDay: ''
   ReportToMassgate: true
   Password: null

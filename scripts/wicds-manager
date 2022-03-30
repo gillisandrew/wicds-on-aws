@@ -606,8 +606,6 @@ _main() {
   fi
 }
 
-WICDSDIR="$HOME/.wine/drive_c/WICDS"
-
 ###############################################################################
 # Default Subcommands
 ###############################################################################
@@ -729,20 +727,22 @@ Description:
   Start dedicated server instance with supplied config name.
 HEREDOC
 start() {
+  set -m
   local _configdir="/etc/wicds"
-  if [ -z "${1:-}" ]; then
+  if [ -z "${1}" ]; then
     _exit_1 printf "Missing required parameter: %s\\n" "instance-name"
   else
-    exec 100>"${WICDSDIR}/.lock" || _exit_1 printf "Unable to lock installation.\\n"
-    flock -w 60 100  || _exit_1 printf "Unable to lock installation.\\n"
+    exec 100>"${WICDS_INSTALL_DIRECTORY}/.lock" || _exit_1 printf "Unable to lock installation.\\n"
+    flock -w 120 100  || _exit_1 printf "Unable to lock installation.\\n"
 
-    cp -f "${_configdir}/${1:-}/"* "${WICDSDIR}"
-    cd "${WICDSDIR}"
-    set -m
+    cp -f "${_configdir}/${1}/"* "${WICDS_INSTALL_DIRECTORY}"
+    cd "${WICDS_INSTALL_DIRECTORY}"
+    export WINEDEBUG=-all
     wine wic_ds.exe &
+    echo $! > "${WICDS_PID_DIR}/${1}.pid"
     sleep 10
     flock -u 100
-    fg
+    exit 0
   fi
 }
 
@@ -784,9 +784,11 @@ install() {
         i=$(($i + 1))
     done
     export DISPLAY=i
+    export WINEDEBUG=-all
 
     Xvfb $DISPLAY -screen 0 1024x768x16 &
     xvfbpid=$!
+
 
     wineboot
     cp "${_srcdir}/install-1.iss" "${_srcdir}/install-2.iss" "$HOME/.wine/drive_c"
@@ -802,12 +804,13 @@ install() {
     xdotool key Tab Tab a Return
     fg %%
 
-    cp "${_srcdir}/d3dx9_33.dll" "$WICDSDIR"
-    cp -r "${_srcdir}/maps" "$WICDSDIR/"
+    cp "${_srcdir}/d3dx9_33.dll" "$WICDS_INSTALL_DIRECTORY"
+    cp -r "${_srcdir}/maps" "$WICDS_INSTALL_DIRECTORY/"
 
     touch "$HOME/.wicds-installed"
 
     kill -TERM $xvfbpid || true
+    exit 0
   fi
 }
 
