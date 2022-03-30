@@ -149,6 +149,7 @@ IFS=$'\n\t'
 
 
 export TERM=dumb ## Fix for systemd exec
+
 ###############################################################################
 # Globals
 ###############################################################################
@@ -774,7 +775,7 @@ install() {
     esac
   done
 
-  if [ -f "$HOME/.wicds-installed" ]; then
+  if [ -f "${HOME}/.wicds-installed" ]; then
     printf "Dedicated server already installed.\\n"
   else
     set -m
@@ -783,7 +784,7 @@ install() {
     while [ -f /tmp/.X$i-lock ]; do
         i=$(($i + 1))
     done
-    export DISPLAY=i
+    export DISPLAY=":${i}"
     export WINEDEBUG=-all
 
     Xvfb $DISPLAY -screen 0 1024x768x16 &
@@ -791,7 +792,7 @@ install() {
 
 
     wineboot
-    cp "${_srcdir}/install-1.iss" "${_srcdir}/install-2.iss" "$HOME/.wine/drive_c"
+    cp "${_srcdir}/install-1.iss" "${_srcdir}/install-2.iss" "${HOME}/.wine/drive_c"
 
 
     wine "${_srcdir}/wic_server_1010.exe"  /s /f1"C:\install-1.iss" &
@@ -804,13 +805,13 @@ install() {
     xdotool key Tab Tab a Return
     fg %%
 
-    cp "${_srcdir}/d3dx9_33.dll" "$WICDS_INSTALL_DIRECTORY"
-    cp -r "${_srcdir}/maps" "$WICDS_INSTALL_DIRECTORY/"
+    cp "${_srcdir}/d3dx9_33.dll" "${WICDS_INSTALL_DIRECTORY}"
+    cp -r "${_srcdir}/maps" "${WICDS_INSTALL_DIRECTORY}/"
 
     touch "$HOME/.wicds-installed"
 
-    kill -TERM $xvfbpid || true
-    exit 0
+    kill -KILL $xvfbpid || true
+
   fi
 }
 
