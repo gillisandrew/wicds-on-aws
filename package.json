@@ -9,7 +9,7 @@
     "build": "tsc",
     "watch": "tsc -w",
     "cdk": "cdk",
-    "init": "cp -n config.example.yaml config.yaml && npm i"
+    "lint:fix": "eslint --fix '**/*.{ts,js}'"
   },
   "devDependencies": {
     "@types/node": "10.17.27",

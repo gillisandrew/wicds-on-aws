@@ -1,0 +1,116 @@
+---
+GlobalConfig:
+        GameNamePrefix: "<#F71>[wicds-on-aws]</> "
+        GameNameSuffix: null
+        MessageOfTheDayHeader: null
+        MessageOfTheDayFooter: |
+                <#999>Server powered by https://github.com/gillisandrew/wicds-on-aws</>
+Instances:
+        myinstance:
+                # `GameName` is the only value you really need to update.
+                # The others will inherit from the default config.
+                # See https://gillisandrew.github.io/3-digit-hex-colors/ for available colors
+                GameName: <#1D4>My New Instance</>
+
+Defaults:
+        GameName: Default
+        MessageOfTheDay: ""
+        ReportToMassgate: true
+        Password: null
+        AdminPassword: null
+        AdminPort: null
+        CustomMapPath: maps
+        ModName: null
+        RandomMapCycle: true
+        NonLinearDominationDisabled: false
+        BannerUrl: null
+        Ranked: false
+        Tournament: false
+        ClanMatch: false
+        QueryPort: 48000
+        GamePortRangeStart: 48000
+        MinPlayersPerTeam: 1
+        MaxPlayersPerTeam: 4
+        StayOnTeam: false
+        UseFireWallSettings: false
+        PrivateIP: null
+        RestartInterval: 1
+        MatchMode: false
+        FewPlayerMode: false
+        MaxTeamImbalanceCount: 2
+        AutoBalanceTeams: true
+        AutoBalanceStartDelay: 45
+        TimeLimitMultiplier: 1.0
+        UseCDKey: false
+        RankBalanceTeams: false
+        AllowSpectating: true
+        AllowFreeSpectating: true
+        AllowSpectatorVoting: true
+        NumAllowedPlayersPerRole: 4
+        MaxNumAllowedTeamChanges: -1
+        BanTime: 90
+        MaxAllowedIdleTime: 0
+        ChatTimeSpan: 20
+        BotMode: 0
+        AutoEvenPlayersPerTeam: 6
+        AutoEvenBotDifficulty: 1
+        MaxChatMessages: 5
+        ChatSpamMuteTime: 120
+        RequestTimeSpan: 20
+        MaxRequests: 5
+        RequestSpamMuteTime: 30
+        FriendlyFireLimit: 50
+        PvsBBotTeam: 1
+        PvsBNumBots: 4
+        PvsBBotDifficulty: 1
+        MapCycle:
+                # ----------------------------------
+                # Classic+SA Maps
+                # ----------------------------------
+                - do_Hometown
+                - do_Xmas
+                - do_Seaside
+                - do_SpaceNeedle
+                - as_Dome
+                - as_Bridge
+                - do_Island
+                - do_Liberty
+                - do_Farmland
+                - tw_Wasteland
+                - do_Riverbed
+                - tw_Highway
+                - do_Silo
+                - as_AirBase
+                - do_Ruins
+                - as_Hillside
+                - do_Riviera
+                - tw_Radar
+                - do_Powerplant
+                - do_Quarry
+                - as_Typhoon
+                - do_Mauer
+                - do_Fjord
+                - do_Studio
+                - do_Canal
+                - do_Apocalypse
+                - do_Tequila
+                # ----------------------------------
+                #   New Maps
+                # ----------------------------------
+                # - as_Ozzault
+                # - do_Airport
+                # - do_AmazingIsland
+                # - do_BeachAssault
+                # - do_Coal
+                # - do_Heligoland
+                # - do_Marseille
+                # - do_Midway
+                # - do_Oil
+                # - do_Ozz
+                # - do_Paradise
+                # - do_Valley
+                # - do_Wake
+                # - tw_Arizona
+                # - tw_bocage
+                # - virginia
+        BanList: []

@@ -1,4 +1,4 @@
-export const CONFIG_FILE_NAME = 'config.yaml';
+export const CONFIG_FILE_NAME = 'config.yml';
 
 export const WICDS_USER = 'wicds-user';
 export const WICDS_CONFIG_DIR = '/etc/wicds';
@@ -12,10 +12,10 @@ export const WICDS_HELPER_SCRIPT_NAME = 'wicds';
 export const WICDS_PID_DIR = '/run/wicds';
 
 export const env = Object.entries({
-  WICDS_USER,
-  WICDS_CONFIG_DIR,
-  WICDS_INSTALL_DIRECTORY,
-  WICDS_SERVICE_NAME,
-  WICDS_HELPER_SCRIPT_NAME,
-  WICDS_PID_DIR,
+    WICDS_USER,
+    WICDS_CONFIG_DIR,
+    WICDS_INSTALL_DIRECTORY,
+    WICDS_SERVICE_NAME,
+    WICDS_HELPER_SCRIPT_NAME,
+    WICDS_PID_DIR,
 }).reduce<string[]>((acc, [key, value]) => [...acc, `${key}='${value}'`], []);
