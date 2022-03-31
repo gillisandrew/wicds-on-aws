@@ -160,7 +160,7 @@ export default class WICDSStack extends Stack {
         'pip3 install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz',
         'mkdir -p /opt/aws/bin',
         'ln -s /usr/local/bin/cfn-*  /opt/aws/bin/',
-        `# HASH ${hash(this.deployment).toUpperCase()}`,
+        `# HASH ${hash(this.deployment || '').toUpperCase()}`,
       );
       return ud;
     })(UserData.forLinux());
