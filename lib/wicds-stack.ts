@@ -1,53 +1,87 @@
-import { Aws, CfnOutput, CfnParameter, Fn, Stack, StackProps } from 'aws-cdk-lib';
-import { BlockDeviceVolume, CfnInstance, CfnPrefixList, CloudFormationInit, GatewayVpcEndpointAwsService, Instance, InstanceClass, InstanceSize, InstanceType, ISecurityGroup, IVpc, MachineImage, Peer, Port, SecurityGroup, SubnetType, UserData, Vpc } from 'aws-cdk-lib/aws-ec2';
-import { IRole, ManagedPolicy, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
+import {
+  Aws, CfnOutput, CfnParameter, Fn, Stack, StackProps,
+} from 'aws-cdk-lib';
+import {
+  BlockDeviceVolume,
+  CfnInstance,
+  CfnPrefixList,
+  CloudFormationInit,
+  GatewayVpcEndpointAwsService,
+  Instance,
+  InstanceClass,
+  InstanceSize,
+  InstanceType,
+  ISecurityGroup,
+  IVpc,
+  MachineImage,
+  Peer,
+  Port,
+  SecurityGroup,
+  SubnetType,
+  UserData,
+  Vpc,
+} from 'aws-cdk-lib/aws-ec2';
+import {
+  IRole, ManagedPolicy, Role, ServicePrincipal,
+} from 'aws-cdk-lib/aws-iam';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
-import * as crypto from 'crypto';
-import configs from './InitConfig';
-export class WICDSStack extends Stack {
-  public deployment: string
-  protected _role?: IRole
-  protected _vpc?: IVpc
-  protected _securityGroup?: ISecurityGroup
-  protected _userData?: UserData
-  protected _init?: CloudFormationInit
-  protected _ec2ConnectPrefixList: CfnPrefixList
-  protected instance: Instance
-  protected bucket: Bucket
-  protected _parameters: {[key: string]: any}
-  private _conditions: any;
+import configs from './Configs';
+import { hash, setCreationTimeout } from './utils';
+
+export default class WICDSStack extends Stack {
+  public deployment: string;
+
+  protected stackRole?: IRole;
+
+  protected stackVpc?: IVpc;
+
+  protected stackSecurityGroup?: ISecurityGroup;
+
+  protected stackUserData?: UserData;
+
+  protected stackInit?: CloudFormationInit;
+
+  protected stackEC2ConnectPrefixList: CfnPrefixList;
+
+  protected instance: Instance;
+
+  protected bucket: Bucket;
+
+  protected stackParameters: { [key: string]: any };
+
+  stackOutputs: any;
 
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
     this.deployment = this.node.tryGetContext('deployment');
     this.node.setContext('hash', this.deployment);
 
-    const { role, vpc, securityGroup, userData } = this;
-    const { instanceSize, instanceClass } = this.parameters
+    const {
+      role, vpc, securityGroup, userData,
+    } = this;
+    const { instanceSize, instanceClass } = this.parameters;
 
     this.vpc.addGatewayEndpoint('s3', {
-      service: GatewayVpcEndpointAwsService.S3
-    })
-
+      service: GatewayVpcEndpointAwsService.S3,
+    });
 
     this.instance = new Instance(this, 'Instance', {
       machineImage: MachineImage.lookup({
         name: 'ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*',
-        owners: ['099720109477']
+        owners: ['099720109477'],
       }),
       instanceType: InstanceType.of(instanceClass, instanceSize),
       vpc,
       securityGroup,
       blockDevices: [{
         deviceName: '/dev/sda1',
-        volume: BlockDeviceVolume.ebs(16)
+        volume: BlockDeviceVolume.ebs(16),
       }],
       role,
       userData,
-      userDataCausesReplacement: true
-    })
-    this.node.defaultChild = this.instance.node.defaultChild
+      userDataCausesReplacement: true,
+    });
 
     this.init.attach(this.instance.node.defaultChild as CfnInstance, {
       configSets: ['setup'],
@@ -55,17 +89,17 @@ export class WICDSStack extends Stack {
       embedFingerprint: false,
       instanceRole: this.instance.role,
       platform: this.instance.osType,
-      ignoreFailures: true // TODO
-    });      
+      ignoreFailures: true, // TODO
+    });
 
-    this.addCreationPolicy(this.instance)
+    setCreationTimeout(this.instance);
 
-    this.outputs()
+    this.outputs();
   }
 
   get ec2ConnectPrefixList() {
-    this._ec2ConnectPrefixList = this._ec2ConnectPrefixList ?? new CfnPrefixList(this, 'EC2ConnectPrefixList', {
-      prefixListName: `com.wicds.global.ec2-connect`,
+    this.stackEC2ConnectPrefixList = this.stackEC2ConnectPrefixList ?? new CfnPrefixList(this, 'EC2ConnectPrefixList', {
+      prefixListName: 'com.wicds.global.ec2-connect',
       addressFamily: 'IPv4',
       maxEntries: 20,
       entries: [
@@ -90,17 +124,16 @@ export class WICDSStack extends Stack {
         '13.52.6.112/29',
         '18.237.140.160/29',
       ].map((cidr) => ({
-        cidr
-      }))
-    })
-    return this._ec2ConnectPrefixList
+        cidr,
+      })),
+    });
+    return this.stackEC2ConnectPrefixList;
   }
 
   get init() {
-    this._init = this._init ?? CloudFormationInit.fromConfigSets({
+    this.stackInit = this.stackInit ?? CloudFormationInit.fromConfigSets({
       configSets: {
         setup: [
-          'setup_environment',
           'enable_cfn',
           'add_wine_repo',
           'install_wine',
@@ -109,127 +142,99 @@ export class WICDSStack extends Stack {
         ],
         default: [
           'install_instances',
-        ]
+        ],
       },
-      configs: configs(this)
-    })
+      configs: configs(this),
+    });
 
-    return this._init
+    return this.stackInit;
   }
-  
+
   get userData() {
-    this._userData = this._userData ?? ((ud) => {
+    this.stackUserData = this.stackUserData ?? ((ud) => {
       ud.addCommands(
         'apt-get -o DPkg::Lock::Timeout=120 update -y',
         'apt-get -o DPkg::Lock::Timeout=120 install -y python3-pip',
         'pip3 install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz',
         'mkdir -p /opt/aws/bin',
         'ln -s /usr/local/bin/cfn-*  /opt/aws/bin/',
-        `# HASH ${this.hash(this.deployment)}`,
-      )
-      return ud
-    })(UserData.forLinux())
+        `# HASH ${hash(this.deployment)}`,
+      );
+      return ud;
+    })(UserData.forLinux());
 
-    return this._userData
+    return this.stackUserData;
   }
 
   get role() {
-    this._role = this._role ?? new Role(this, 'Role', {
+    this.stackRole = this.stackRole ?? new Role(this, 'Role', {
       assumedBy: new ServicePrincipal('ec2.amazonaws.com'),
       managedPolicies: [
         ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMManagedInstanceCore'),
         ManagedPolicy.fromAwsManagedPolicyName('CloudWatchAgentServerPolicy'),
-      ]
-    })
+      ],
+    });
 
-    return this._role
+    return this.stackRole;
   }
 
   get vpc() {
-    this._vpc = this._vpc ?? new Vpc(this, 'Vpc', {
+    this.stackVpc = this.stackVpc ?? new Vpc(this, 'Vpc', {
       cidr: '10.0.0.0/16',
       natGateways: 0,
       maxAzs: 2,
       subnetConfiguration: [{
         name: 'PublicA',
         subnetType: SubnetType.PUBLIC,
-        cidrMask: 24
-      },{
+        cidrMask: 24,
+      }, {
         name: 'PublicB',
         subnetType: SubnetType.PUBLIC,
-        cidrMask: 24
-      }]
-    })
+        cidrMask: 24,
+      }],
+    });
 
-    return this._vpc
+    return this.stackVpc;
   }
 
   get securityGroup() {
-    this._securityGroup = this._securityGroup ?? ((sg) => {
-      sg.addIngressRule(Peer.anyIpv4(), Port.allIcmp())
-      sg.addIngressRule(Peer.anyIpv4(), Port.tcp(3004))
-      sg.addIngressRule(Peer.anyIpv4(), Port.udp(22996))
-      sg.addIngressRule(Peer.anyIpv4(), Port.udp(22993))
-      sg.addIngressRule(Peer.anyIpv4(), Port.udpRange(48000, 48999))
-      sg.addIngressRule(Peer.anyIpv4(), Port.tcpRange(48000, 48999))
-      sg.addIngressRule(Peer.anyIpv4(), Port.udpRange(52000, 52999))
-      sg.addIngressRule(Peer.anyIpv4(), Port.tcpRange(52000, 52999))
-      sg.addIngressRule(Peer.prefixList(this.ec2ConnectPrefixList.getAtt('PrefixListId').toString() as string), Port.tcp(22))
-      return sg
+    this.stackSecurityGroup = this.stackSecurityGroup ?? ((sg) => {
+      sg.addIngressRule(Peer.anyIpv4(), Port.allIcmp());
+      sg.addIngressRule(Peer.anyIpv4(), Port.tcp(3004));
+      sg.addIngressRule(Peer.anyIpv4(), Port.udp(22996));
+      sg.addIngressRule(Peer.anyIpv4(), Port.udp(22993));
+      sg.addIngressRule(Peer.anyIpv4(), Port.udpRange(48000, 48999));
+      sg.addIngressRule(Peer.anyIpv4(), Port.tcpRange(48000, 48999));
+      sg.addIngressRule(Peer.anyIpv4(), Port.udpRange(52000, 52999));
+      sg.addIngressRule(Peer.anyIpv4(), Port.tcpRange(52000, 52999));
+      sg.addIngressRule(Peer.prefixList(this.ec2ConnectPrefixList.getAtt('PrefixListId').toString() as string), Port.tcp(22));
+      return sg;
     })(new SecurityGroup(this, 'SecurityGroup', {
       vpc: this.vpc,
-      allowAllOutbound: true
-    }))
+      allowAllOutbound: true,
+    }));
 
-    return this._securityGroup
+    return this.stackSecurityGroup;
   }
 
-  private addCreationPolicy(instance: Instance) {
-    const cfnInstance = instance.node.defaultChild as CfnInstance
-    cfnInstance.cfnOptions.creationPolicy = {
-      resourceSignal: {
-        count: 1,
-        timeout: 'PT30M',
-      }
-    }
-  }
+  get outputs() {
+    this.stackOutputs = this.stackOutputs ?? {
+      instanceId: new CfnOutput(this, 'InstanceId', {
+        value: this.instance.instanceId,
+      }),
+      ec2InstanceConnectUrl: new CfnOutput(this, 'EC2InstanceConnectURL', {
+        value: Fn.join('', [
+          `https://${Aws.REGION}.console.aws.amazon.com/ec2/v2/connect/ubuntu/`,
+          this.instance.instanceId,
+        ]),
+      }),
+    };
 
-  private hash(value: any) {
-    const md5 = crypto.createHash('md5')
-    md5.update(JSON.stringify(value))
-    return md5.digest('hex')
-  }
-
-  private outputs() {
-    new CfnOutput(this, 'InstanceId', {
-      value: this.instance.instanceId,
-    })
-    new CfnOutput(this, 'EC2InstanceConnectURL', {
-      value: Fn.join('', [
-        `https://${Aws.REGION}.console.aws.amazon.com/ec2/v2/connect/ubuntu/`,
-        this.instance.instanceId
-      ])
-    })
-  }
-  get conditions() {
-    this._conditions = this._conditions ?? {
-     
-    }
-    return this._conditions
+    return this.stackOutputs;
   }
 
   get parameters() {
-    this._parameters = this._parameters ?? {
-      // hash: (new CfnParameter(this, 'Hash', {
-      //   description: 'Value used to force reprovisioning the instance',
-      //   type: 'String',
-      //   default: 'none'
-      // })).valueAsString,
-      // keyName: (new CfnParameter(this, 'KeyName', {
-      //   description: 'Key pair name used to secure the server',
-      //   type: 'String',
-      //   default: ''
-      // })).valueAsString,
+    this.stackParameters = this.stackParameters ?? {
       instanceSize: (new CfnParameter(this, 'InstanceSize', {
         description: 'Instance size of the server',
         type: 'String',
@@ -241,8 +246,12 @@ export class WICDSStack extends Stack {
         type: 'String',
         allowedValues: Object.values(InstanceClass),
         default: InstanceClass.T3,
-      })).valueAsString as InstanceClass
-    }
-    return this._parameters
+      })).valueAsString as InstanceClass,
+    };
+    return this.stackParameters;
+  }
+
+  public static create(scope: Construct, id: string, props?: StackProps) {
+    return new WICDSStack(scope, id, props);
   }
 }

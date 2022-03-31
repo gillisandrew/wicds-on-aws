@@ -1,20 +1,21 @@
 export default class File {
-    protected _lines: string[] = []
+  protected lines: string[] = [];
 
-    constructor(protected sep = '\r\n') {}
+  protected sep: string;
 
-    public write(...lines: string[]) {
-        this._lines.push(...lines)
-    }
+  constructor(sep: string = '\r\n') {
+    this.sep = sep;
+  }
 
-    public toString() {
-        return this._lines.join(this.sep)
-    }
-}
+  public write(...lines: string[]) {
+    this.lines.push(...lines);
+  }
 
-export enum FileMode {
-    DIRECTORY = '040000',
-    NORMAL_FILE = '100644',
-    EXECUTABLE_FILE = '100755',
-    SYMBOLIC_LINK = '120000',
+  public toString() {
+    return this.lines.join(this.sep);
+  }
+
+  public addMarker(prefix: string = '//~~ ') {
+    this.write(`${prefix}This is a generated file. Any modifications made will be overwritten`);
+  }
 }
