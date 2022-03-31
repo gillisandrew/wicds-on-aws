@@ -6,6 +6,7 @@ import File from './File';
 export default class WicdsServiceFile extends File {
   constructor() {
     super('\n');
+    this.addMarker('#~~ ');
     this.write('[Unit]');
     this.write('Description=World in Conflict: Dedicated Server - %i');
     this.write('After=network.target windows.service');

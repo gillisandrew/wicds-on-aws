@@ -76,36 +76,36 @@ export default class WicDsIniFile extends File {
   private booleanSetting(name: string, value: boolean) {
     WicDsIniFile.checkValueIsSet(name, value);
     this.settingKey(name);
-    this.write(value ? '1' : '0');
+    this.write(value ? '1' : '0', '');
   }
 
   private yesNoSetting(name: string, value: boolean) {
     WicDsIniFile.checkValueIsSet(name, value);
     this.settingKey(name);
-    this.write(value ? 'yes' : 'no');
+    this.write(value ? 'yes' : 'no', '');
   }
 
   private stringSetting(name: string, value?: string) {
     WicDsIniFile.checkValueIsSet(name, value);
     this.settingKey(name);
-    this.write(value || 'no');
+    this.write(value || 'no', '');
   }
 
   private requiredSetting(name: string, value: any) {
     WicDsIniFile.checkValueIsSet(name, value);
     this.settingKey(name);
-    this.write(value);
+    this.write(value, '');
   }
 
   private integerSetting(name: string, value: number) {
     WicDsIniFile.checkValueIsSet(name, value);
     this.settingKey(name);
-    this.write(value.toString());
+    this.write(value.toString(), '');
   }
 
   private fixedIntegerSetting(name: string, value: number, places = 1) {
     WicDsIniFile.checkValueIsSet(name, value);
     this.settingKey(name);
-    this.write(value.toFixed(places));
+    this.write(value.toFixed(places), '');
   }
 }

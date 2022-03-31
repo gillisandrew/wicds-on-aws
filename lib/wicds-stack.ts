@@ -76,12 +76,14 @@ export default class WICDSStack extends Stack {
       securityGroup,
       blockDevices: [{
         deviceName: '/dev/sda1',
-        volume: BlockDeviceVolume.ebs(16),
+        volume: BlockDeviceVolume.ebs(12),
       }],
       role,
       userData,
       userDataCausesReplacement: true,
     });
+
+    this.node.defaultChild = this.instance.node.defaultChild;
 
     this.init.attach(this.instance.node.defaultChild as CfnInstance, {
       configSets: ['setup'],
@@ -94,7 +96,7 @@ export default class WICDSStack extends Stack {
 
     setCreationTimeout(this.instance);
 
-    this.outputs();
+    this.getOutputs();
   }
 
   get ec2ConnectPrefixList() {
@@ -158,7 +160,7 @@ export default class WICDSStack extends Stack {
         'pip3 install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz',
         'mkdir -p /opt/aws/bin',
         'ln -s /usr/local/bin/cfn-*  /opt/aws/bin/',
-        `# HASH ${hash(this.deployment)}`,
+        `# HASH ${hash(this.deployment).toUpperCase()}`,
       );
       return ud;
     })(UserData.forLinux());
@@ -217,7 +219,7 @@ export default class WICDSStack extends Stack {
     return this.stackSecurityGroup;
   }
 
-  get outputs() {
+  private getOutputs() {
     this.stackOutputs = this.stackOutputs ?? {
       instanceId: new CfnOutput(this, 'InstanceId', {
         value: this.instance.instanceId,
@@ -245,7 +247,7 @@ export default class WICDSStack extends Stack {
         description: 'Instance class of the server',
         type: 'String',
         allowedValues: Object.values(InstanceClass),
-        default: InstanceClass.T3,
+        default: InstanceClass.T2,
       })).valueAsString as InstanceClass,
     };
     return this.stackParameters;

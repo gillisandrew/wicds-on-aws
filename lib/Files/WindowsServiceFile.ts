@@ -6,6 +6,7 @@ import File from './File';
 export default class WineserverServiceFile extends File {
   constructor() {
     super('\n');
+    this.addMarker('#~~ ');
     this.write('[Unit]');
     this.write('Description=Boot windows services.');
 

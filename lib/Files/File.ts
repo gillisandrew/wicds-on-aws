@@ -1,4 +1,4 @@
-export default class File {
+export default abstract class File {
   protected lines: string[] = [];
 
   protected sep: string;
