@@ -1,5 +1,6 @@
 {
-  "name": "wicds-template",
+  "name": "wicds-on-aws",
+  "description": "AWS CDK stack for deploying a World in Conflict dedicated server.",
   "version": "0.1.0",
   "bin": {
     "wicds": "bin/wicds.js"
@@ -8,11 +9,16 @@
     "build": "tsc",
     "watch": "tsc -w",
     "cdk": "cdk",
-    "init": "cp -n config.example.yaml config.yaml"
+    "init": "cp -n config.example.yaml config.yaml && npm i"
   },
   "devDependencies": {
     "@types/node": "10.17.27",
+    "@typescript-eslint/eslint-plugin": "^5.17.0",
+    "@typescript-eslint/parser": "^5.17.0",
     "aws-cdk": "2.17.0",
+    "eslint": "^8.12.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.25.4",
     "ts-node": "^9.0.0",
     "typescript": "~3.9.7"
   },

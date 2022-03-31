@@ -1,4 +1,4 @@
-import { WICDS_HELPER_SCRIPT_NAME, WICDS_INSTALL_DIRECTORY, WICDS_PID_DIR, WICDS_USER } from "../constants";
+import { env, WICDS_CONFIG_DIR, WICDS_HELPER_SCRIPT_NAME, WICDS_INSTALL_DIRECTORY, WICDS_PID_DIR, WICDS_USER } from "../constants";
 import File from "./File";
 
 export default class WicdsServiceFile extends File {
@@ -6,7 +6,7 @@ export default class WicdsServiceFile extends File {
         super('\n')
         this.write('[Unit]')
         this.write('Description=World in Conflict: Dedicated Server - %i')
-        this.write('After=network.target wineserver.service')
+        this.write('After=network.target windows.service')
         this.write('StartLimitIntervalSec=0')
 
         this.write('[Service]')
@@ -19,7 +19,7 @@ export default class WicdsServiceFile extends File {
         this.write(`PIDFile=${WICDS_PID_DIR}/%i.pid`)
         this.write('KillMode=process')
 
-        this.write(`Environment=WICDS_INSTALL_DIRECTORY="${WICDS_INSTALL_DIRECTORY}" WICDS_PID_DIR="${WICDS_PID_DIR}"`)
+        this.write(`EnvironmentFile=${WICDS_CONFIG_DIR}/environment`)
 
         this.write('[Install]')
         this.write('WantedBy=multi-user.target')

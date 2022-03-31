@@ -11,3 +11,10 @@ export default class File {
         return this._lines.join(this.sep)
     }
 }
+
+export enum FileMode {
+    DIRECTORY = '040000',
+    NORMAL_FILE = '100644',
+    EXECUTABLE_FILE = '100755',
+    SYMBOLIC_LINK = '120000',
+}

@@ -2,8 +2,8 @@ import { InitCommand, InitConfig, InitFile, InitSource } from "aws-cdk-lib/aws-e
 import { Construct } from "constructs";
 
 export default (scope: Construct) => new InitConfig([
-    InitFile.fromAsset('/usr/local/bin/add-wine-repo', './scripts/add-wine-repo', { mode: '000755' }),
-    InitCommand.shellCommand('add-wine-repo'),
+    InitCommand.shellCommand('wget -nv -O- https://dl.winehq.org/wine-builds/winehq.key | APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=1 apt-key add -'),
+    InitCommand.shellCommand('echo "deb https://dl.winehq.org/wine-builds/ubuntu/ $(grep VERSION_CODENAME= /etc/os-release | cut -d= -f2) main" >> /etc/apt/sources.list'),
     InitCommand.shellCommand('dpkg --add-architecture i386'),
     InitCommand.shellCommand('apt-get update -y'),
 ])

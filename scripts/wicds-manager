@@ -719,6 +719,24 @@ version() {
 # }
 #
 ###############################################################################
+describe "boot" <<HEREDOC
+Usage:
+  ${_ME} boot
+
+Description:
+  Boot windows services.
+HEREDOC
+boot() {
+    export WINEDEBUG=-all
+    printf "Starting windows services...\\n"
+    /opt/wine-stable/bin/wineserver -p &
+    cd "${WICDS_INSTALL_DIRECTORY}"
+    wine wic_ds.exe &
+    pid=$!
+    sleep 10
+    kill -TERM $pid
+    printf "SUCCESS\\n"
+}
 
 describe "start" <<HEREDOC
 Usage:
@@ -728,22 +746,29 @@ Description:
   Start dedicated server instance with supplied config name.
 HEREDOC
 start() {
-  set -m
-  local _configdir="/etc/wicds"
+  local _configdir="${WICDS_CONFIG_DIR}"
   if [ -z "${1}" ]; then
     _exit_1 printf "Missing required parameter: %s\\n" "instance-name"
   else
+    local _instance="${1}"
+    printf "Getting wicds lock...\\n"
     exec 100>"${WICDS_INSTALL_DIRECTORY}/.lock" || _exit_1 printf "Unable to lock installation.\\n"
-    flock -w 120 100  || _exit_1 printf "Unable to lock installation.\\n"
-
-    cp -f "${_configdir}/${1}/"* "${WICDS_INSTALL_DIRECTORY}"
+    flock -w 30 100  || _exit_1 printf "Unable to lock installation.\\n"
+    printf "Got wicds lock.\\n"
+    printf "Preparing instance config files... %s -> %s\\n" "${_configdir}/${_instance}/" "${WICDS_INSTALL_DIRECTORY}/"
+    cp -f "${_configdir}/${_instance}/"* "${WICDS_INSTALL_DIRECTORY}"
+    printf "Instance config ready.\\n"
     cd "${WICDS_INSTALL_DIRECTORY}"
-    export WINEDEBUG=-all
-    wine wic_ds.exe &
-    echo $! > "${WICDS_PID_DIR}/${1}.pid"
-    sleep 10
-    flock -u 100
-    exit 0
+    printf "Starting instance...\\n"
+    WINEDEBUG=-all wine wic_ds.exe -instance "${_instance}" &
+    pid=$!
+    echo $pid > "${WICDS_PID_DIR}/${_instance}.pid"
+    printf "Instance started. PID %s\\n" "$pid"
+    printf "Waiting 2s to ensure the instance is bootstrapped.\\n"
+    sleep 2
+    flock -u 100 || _exit_1 printf "Unlock failed.\\n"
+    printf "Lock released.\\n"
+    printf "SUCCESS\\n"
   fi
 }
 
@@ -778,39 +803,48 @@ install() {
   if [ -f "${HOME}/.wicds-installed" ]; then
     printf "Dedicated server already installed.\\n"
   else
-    set -m
-
+    . /etc/wicds/environment
     i=0
     while [ -f /tmp/.X$i-lock ]; do
         i=$(($i + 1))
     done
     export DISPLAY=":${i}"
     export WINEDEBUG=-all
-
+    printf "Starting display %s...\\n" "${DISPLAY}"
     Xvfb $DISPLAY -screen 0 1024x768x16 &
     xvfbpid=$!
+    printf "Display started PID %s.\\n" "${xvfbpid}"
 
-
-    wineboot
-    cp "${_srcdir}/install-1.iss" "${_srcdir}/install-2.iss" "${HOME}/.wine/drive_c"
-
-
+    printf "Starting install step 1...\\n"
+    cp "${WICDS_CONFIG_DIR}/install-1.iss" "${WICDS_CONFIG_DIR}/install-2.iss" "${HOME}/.wine/drive_c"
     wine "${_srcdir}/wic_server_1010.exe"  /s /f1"C:\install-1.iss" &
-    sleep 10
+    sleep 20
+    printf "Sending keystrokes...\\n"
     xdotool key Tab Tab a Return
-    fg %%
-
+    wait %%
+    printf "Install step 1 complete.\\n"
+    printf "Starting install step 2.\\n"
     wine "${_srcdir}/wic_server_update_1010_to_1011.exe"  /s /f1"C:\install-2.iss" &
-    sleep 10
+    sleep 20
+    printf "Sending keystrokes...\\n"
     xdotool key Tab Tab a Return
-    fg %%
+    wait %%
+    printf "Install step 1 complete.\\n"
 
+    printf "Applying MP fix...\\n"
     cp "${_srcdir}/d3dx9_33.dll" "${WICDS_INSTALL_DIRECTORY}"
+    printf "MP fix applied.\\n"
+    printf "Installing extra maps...\\n"
     cp -r "${_srcdir}/maps" "${WICDS_INSTALL_DIRECTORY}/"
+    printf "Extra maps installed.\\n"
 
+    printf "Adding installed flag...\\n"
     touch "$HOME/.wicds-installed"
+    printf "Flag added.\\n"
 
-    kill -KILL $xvfbpid || true
+    printf "Killing the display...\\n"
+    kill $xvfbpid || true
+    printf "Display killed.\\n"
 
   fi
 }

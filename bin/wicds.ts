@@ -5,5 +5,8 @@ import { WICDSStack } from '../lib/wicds-stack';
 
 const app = new cdk.App();
 new WICDSStack(app, 'WICDSStack', {
-  env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.AWS_REGION },
+  env: {
+    account: process.env.CDK_DEFAULT_ACCOUNT,
+    region: process.env.CDK_DEFAULT_REGION,
+  }
 });
